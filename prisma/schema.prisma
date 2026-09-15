@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum OrderStatus {
+  pending
+  paid
+  fulfilled
+  cancelled
+}
+
+model Category {
+  slug        String    @id
+  name        String
+  description String
+  image       Json
+  products    Product[]
+}
+
+model Product {
+  id            String           @id @default(cuid())
+  slug          String           @unique
+  name          String
+  description   String
+  priceAmount   Float
+  priceCurrency String
+  images        Json
+  categorySlug  String
+  category      Category         @relation(fields: [categorySlug], references: [slug], onDelete: Cascade)
+  stock         Int
+  rating        Float
+  createdAt     DateTime         @default(now())
+  variants      ProductVariant[]
+  cartItems     CartItem[]
+}
+
+model ProductVariant {
+  id            String    @id @default(cuid())
+  name          String
+  sku           String    @unique
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  priceAmount   Float?
+  priceCurrency String?
+  stock         Int
+  cartItems     CartItem[]
+}
+
+model CartItem {
+  id        String          @id @default(cuid())
+  productId String
+  variantId String?
+  quantity  Int
+  unitPrice Float
+  currency  String
+  createdAt DateTime        @default(now())
+  cartId    String?
+  cart      Cart?           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product?        @relation(fields: [productId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  items     CartItem[]
+  subtotal  Float
+  tax       Float
+  total     Float
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  order     Order?
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  cartId          String      @unique
+  cart            Cart        @relation(fields: [cartId], references: [id])
+  items           Json
+  shippingAddress Json
+  contactEmail    String
+  subtotal        Float
+  tax             Float
+  total           Float
+  status          OrderStatus
+  createdAt       DateTime    @default(now())
+}

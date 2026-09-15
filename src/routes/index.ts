@@ -1,0 +1,18 @@
+import { Router } from 'express';
+import cartRouter from './cart.routes.js';
+import catalogRouter from './catalog.routes.js';
+import healthRouter from './health.routes.js';
+import openapiRouter from './openapi.routes.js';
+import orderRouter from './order.routes.js';
+import swaggerRouter from './swagger.routes.js';
+
+const router = Router();
+
+router.use('/health', healthRouter);
+router.use('/api/docs', swaggerRouter);
+router.use('/api', openapiRouter);
+router.use('/api', catalogRouter);
+router.use('/api', cartRouter);
+router.use('/api', orderRouter);
+
+export default router;

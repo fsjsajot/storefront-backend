@@ -1,0 +1,896 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ecommerce Backend API",
+    "version": "0.1.0",
+    "description": "REST API for the ecommerce backend: catalog, search, carts, and orders."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["system"],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "summary": "OpenAPI specification",
+        "tags": ["system"],
+        "responses": {
+          "200": {
+            "description": "This OpenAPI document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "summary": "Swagger UI for interactive API exploration",
+        "description": "Serves the Swagger UI web interface, which renders this OpenAPI document and lets you execute requests against the API from a browser.",
+        "tags": ["system"],
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML page",
+            "content": {
+              "text/html": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "summary": "List all categories",
+        "tags": ["catalog"],
+        "responses": {
+          "200": {
+            "description": "A list of categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Category" }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": { "total": { "type": "integer" } },
+                      "required": ["total"]
+                    }
+                  },
+                  "required": ["data", "meta"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories/{slug}": {
+      "get": {
+        "summary": "Get a single category",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Category" }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/categories/{slug}/products": {
+      "get": {
+        "summary": "List products belonging to a category",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products in the category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": { "total": { "type": "integer" } },
+                      "required": ["total"]
+                    }
+                  },
+                  "required": ["data", "meta"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "summary": "Paginated product list",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+                  },
+                  "required": ["data", "meta"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/products/{slug}": {
+      "get": {
+        "summary": "Get a single product with variants",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "summary": "Search and filter products with sorting and pagination",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Text search against product name and description",
+            "schema": { "type": "string", "maxLength": 200 }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "number", "minimum": 0 }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "number", "minimum": 0 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["relevance", "price-asc", "price-desc", "newest", "rating"],
+              "default": "relevance"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results (pageSize fixed at 6)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchResult" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/carts": {
+      "post": {
+        "summary": "Create a new empty cart",
+        "tags": ["carts"],
+        "responses": {
+          "201": {
+            "description": "The created cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/carts/{cartId}": {
+      "get": {
+        "summary": "Fetch a cart with computed totals",
+        "tags": ["carts"],
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Clear a cart",
+        "tags": ["carts"],
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The emptied cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/carts/{cartId}/items": {
+      "post": {
+        "summary": "Add an item to a cart (quantity capped at available stock)",
+        "tags": ["carts"],
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AddCartItemInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/carts/{cartId}/items/{itemId}": {
+      "patch": {
+        "summary": "Update an item quantity",
+        "tags": ["carts"],
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCartItemInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "summary": "Remove an item from a cart",
+        "tags": ["carts"],
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The updated cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Cart" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "summary": "Create an order from an existing cart",
+        "tags": ["orders"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateOrderInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Order" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/orders/{orderId}": {
+      "get": {
+        "summary": "Fetch a single order",
+        "tags": ["orders"],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Order" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/orders/{orderId}/status": {
+      "patch": {
+        "summary": "Transition an order status",
+        "tags": ["orders"],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateOrderStatusInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Order" } },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["ok"] },
+          "uptime": { "type": "number" }
+        },
+        "required": ["status", "uptime"]
+      },
+      "Image": {
+        "type": "object",
+        "properties": {
+          "src": { "type": "string", "format": "uri" },
+          "alt": { "type": "string" },
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["src", "alt", "width", "height"]
+      },
+      "Price": {
+        "type": "object",
+        "properties": {
+          "amount": { "type": "number", "minimum": 0 },
+          "currency": { "type": "string", "minLength": 3, "maxLength": 3 }
+        },
+        "required": ["amount", "currency"]
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "image": { "$ref": "#/components/schemas/Image" }
+        },
+        "required": ["slug", "name", "description", "image"]
+      },
+      "ProductVariant": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "sku": { "type": "string" },
+          "price": { "$ref": "#/components/schemas/Price" },
+          "stock": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["id", "name", "sku", "stock"]
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "price": { "$ref": "#/components/schemas/Price" },
+          "images": { "type": "array", "items": { "$ref": "#/components/schemas/Image" } },
+          "categorySlug": { "type": "string" },
+          "stock": { "type": "integer", "minimum": 0 },
+          "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "variants": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductVariant" }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "price",
+          "images",
+          "categorySlug",
+          "stock",
+          "rating",
+          "createdAt",
+          "variants"
+        ]
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "productId": { "type": "string" },
+          "variantId": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "unitPrice": { "type": "number", "minimum": 0 },
+          "currency": { "type": "string", "minLength": 3, "maxLength": 3 }
+        },
+        "required": ["productId", "quantity", "unitPrice", "currency"]
+      },
+      "CartItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "productId": { "type": "string" },
+          "variantId": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "unitPrice": { "type": "number", "minimum": 0 },
+          "currency": { "type": "string", "minLength": 3, "maxLength": 3 }
+        },
+        "required": ["id", "productId", "quantity", "unitPrice", "currency"]
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CartItemResponse" }
+          },
+          "subtotal": { "type": "number", "minimum": 0 },
+          "tax": { "type": "number", "minimum": 0 },
+          "total": { "type": "number", "minimum": 0 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "items", "subtotal", "tax", "total", "createdAt", "updatedAt"]
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "line1": { "type": "string" },
+          "city": { "type": "string" },
+          "postalCode": { "type": "string" },
+          "country": { "type": "string", "minLength": 2, "maxLength": 2 }
+        },
+        "required": ["firstName", "lastName", "line1", "city", "postalCode", "country"]
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "cartId": { "type": "string" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } },
+          "shippingAddress": { "$ref": "#/components/schemas/Address" },
+          "contactEmail": { "type": "string", "format": "email" },
+          "subtotal": { "type": "number", "minimum": 0 },
+          "tax": { "type": "number", "minimum": 0 },
+          "total": { "type": "number", "minimum": 0 },
+          "status": { "$ref": "#/components/schemas/OrderStatus" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": [
+          "id",
+          "cartId",
+          "items",
+          "shippingAddress",
+          "contactEmail",
+          "subtotal",
+          "tax",
+          "total",
+          "status",
+          "createdAt"
+        ]
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": ["pending", "paid", "fulfilled", "cancelled"]
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "total": { "type": "integer", "minimum": 0 },
+          "totalPages": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["page", "pageSize", "total", "totalPages"]
+      },
+      "SearchFilters": {
+        "type": "object",
+        "properties": {
+          "q": { "type": "string" },
+          "category": { "type": "string" },
+          "minPrice": { "type": "number" },
+          "maxPrice": { "type": "number" },
+          "sort": {
+            "type": "string",
+            "enum": ["relevance", "price-asc", "price-desc", "newest", "rating"]
+          }
+        },
+        "required": ["q", "sort"]
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "totalPages": { "type": "integer", "minimum": 0 },
+          "filters": { "$ref": "#/components/schemas/SearchFilters" },
+          "hasActiveFilters": { "type": "boolean" }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages",
+          "filters",
+          "hasActiveFilters"
+        ]
+      },
+      "AddCartItemInput": {
+        "type": "object",
+        "properties": {
+          "productId": { "type": "string" },
+          "variantId": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["productId", "quantity"]
+      },
+      "UpdateCartItemInput": {
+        "type": "object",
+        "properties": {
+          "quantity": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["quantity"]
+      },
+      "CreateOrderInput": {
+        "type": "object",
+        "properties": {
+          "cartId": { "type": "string" },
+          "contactEmail": { "type": "string", "format": "email" },
+          "shippingAddress": { "$ref": "#/components/schemas/Address" }
+        },
+        "required": ["cartId", "contactEmail", "shippingAddress"]
+      },
+      "UpdateOrderStatusInput": {
+        "type": "object",
+        "properties": {
+          "status": { "$ref": "#/components/schemas/OrderStatus" }
+        },
+        "required": ["status"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" },
+              "requestId": { "type": "string" },
+              "details": {
+                "description": "Zod validation issues for 400 responses",
+                "type": "array",
+                "items": { "type": "object" }
+              }
+            },
+            "required": ["message"]
+          }
+        },
+        "required": ["error"]
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Invalid input",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict (e.g. insufficient stock, duplicate order)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "system", "description": "Operational endpoints" },
+    { "name": "catalog", "description": "Categories, products, and search" },
+    { "name": "carts", "description": "Anonymous shopping carts" },
+    { "name": "orders", "description": "Order lifecycle" }
+  ]
+}
