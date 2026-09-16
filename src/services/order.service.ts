@@ -8,11 +8,18 @@ import {
 } from '../repositories/order.repository.js';
 import { ApiError } from '../utils/api-error.js';
 import { computeTotals } from '../utils/money.js';
+import { recordAudit, type AuditActorType, type AuditContext } from './audit.service.js';
 
 export interface CreateOrderInput {
   cartId: string;
+  userId?: string | null;
   contactEmail: string;
   shippingAddress: Address;
+}
+
+export interface OrderViewer {
+  id: string;
+  role: 'CUSTOMER' | 'ADMIN';
 }
 
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -45,8 +52,18 @@ function isUniqueConstraintError(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002';
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<Order> {
-  return prisma
+function actorForOrder(
+  cartId: string,
+  context?: AuditContext,
+): { actorType: AuditActorType; actorId: string | null } {
+  if (context?.actorType === 'USER') {
+    return { actorType: 'USER', actorId: context.actorId ?? null };
+  }
+  return { actorType: 'GUEST', actorId: cartId };
+}
+
+export async function createOrder(input: CreateOrderInput, context?: AuditContext): Promise<Order> {
+  const order = await prisma
     .$transaction(async (tx) => {
       const cart = await orderRepository.findCartById(tx, input.cartId);
       if (cart === null) {
@@ -115,6 +132,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       const totals = computeTotals(items);
       const order = await orderRepository.createOrder(tx, {
         cartId: input.cartId,
+        userId: input.userId ?? null,
         contactEmail: input.contactEmail,
         shippingAddress: input.shippingAddress as unknown as Prisma.InputJsonValue,
         items: items as unknown as Prisma.InputJsonValue,
@@ -131,17 +149,41 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       }
       throw err;
     });
+
+  const actor = actorForOrder(input.cartId, context);
+  await recordAudit({
+    entityType: 'Order',
+    entityId: order.id,
+    action: 'ORDER_CREATED',
+    actorType: actor.actorType,
+    actorId: actor.actorId,
+    metadata: { cartId: input.cartId, total: order.total },
+    context,
+  });
+  return order;
 }
 
-export async function getOrder(orderId: string): Promise<Order> {
+export async function getOrder(orderId: string, viewer?: OrderViewer): Promise<Order> {
   const row = await orderRepository.findOrderById(orderId);
   if (row === null) {
     throw new ApiError(404, 'Order not found');
   }
+  if (viewer !== undefined && row.userId !== viewer.id && viewer.role !== 'ADMIN') {
+    throw new ApiError(403, 'You do not have access to this order');
+  }
   return mapOrder(row);
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order> {
+export async function listOrdersForUser(userId: string): Promise<Order[]> {
+  const rows = await orderRepository.findOrdersByUserId(userId);
+  return rows.map(mapOrder);
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  context?: AuditContext,
+): Promise<Order> {
   const row = await orderRepository.findOrderById(orderId);
   if (row === null) {
     throw new ApiError(404, 'Order not found');
@@ -150,12 +192,22 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     throw new ApiError(400, `Invalid status transition: ${row.status} -> ${status}`);
   }
   const updated = await orderRepository.updateOrderStatus(orderId, status);
+  await recordAudit({
+    entityType: 'Order',
+    entityId: orderId,
+    action: 'ORDER_STATUS_CHANGED',
+    actorType: context?.actorType,
+    actorId: context?.actorId,
+    metadata: { from: row.status, to: status },
+    context,
+  });
   return mapOrder(updated);
 }
 
 export const orderService = {
   createOrder,
   getOrder,
+  listOrdersForUser,
   updateOrderStatus,
   canTransition,
 };

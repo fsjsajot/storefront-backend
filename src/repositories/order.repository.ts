@@ -9,6 +9,7 @@ export type VariantRow = Prisma.ProductVariantGetPayload<true>;
 
 export interface CreateOrderInput {
   cartId: string;
+  userId: string | null;
   contactEmail: string;
   shippingAddress: Prisma.InputJsonValue;
   items: Prisma.InputJsonValue;
@@ -51,6 +52,7 @@ async function createOrder(tx: Tx, input: CreateOrderInput): Promise<OrderRow> {
   return tx.order.create({
     data: {
       cartId: input.cartId,
+      userId: input.userId,
       contactEmail: input.contactEmail,
       shippingAddress: input.shippingAddress,
       items: input.items,
@@ -64,6 +66,13 @@ async function createOrder(tx: Tx, input: CreateOrderInput): Promise<OrderRow> {
 
 async function findOrderById(orderId: string): Promise<OrderRow | null> {
   return prisma.order.findUnique({ where: { id: orderId } });
+}
+
+async function findOrdersByUserId(userId: string): Promise<OrderRow[]> {
+  return prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
 async function updateOrderStatus(orderId: string, status: PrismaOrderStatus): Promise<OrderRow> {
@@ -82,5 +91,6 @@ export const orderRepository = {
   decrementVariantStock,
   createOrder,
   findOrderById,
+  findOrdersByUserId,
   updateOrderStatus,
 };

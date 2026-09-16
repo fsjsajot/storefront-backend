@@ -13,6 +13,39 @@ enum OrderStatus {
   cancelled
 }
 
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum AuditActorType {
+  USER
+  GUEST
+  SYSTEM
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(CUSTOMER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  carts         Cart[]
+  orders        Order[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
 model Category {
   slug        String    @id
   name        String
@@ -66,6 +99,8 @@ model CartItem {
 
 model Cart {
   id        String     @id @default(cuid())
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   items     CartItem[]
   subtotal  Float
   tax       Float
@@ -79,6 +114,8 @@ model Order {
   id              String      @id @default(cuid())
   cartId          String      @unique
   cart            Cart        @relation(fields: [cartId], references: [id])
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   items           Json
   shippingAddress Json
   contactEmail    String
@@ -87,4 +124,19 @@ model Order {
   total           Float
   status          OrderStatus
   createdAt       DateTime    @default(now())
+}
+
+model AuditLog {
+  id         String          @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorType  AuditActorType
+  actorId    String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([entityType, entityId])
 }
