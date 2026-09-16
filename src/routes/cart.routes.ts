@@ -4,9 +4,11 @@ import {
   clearCart,
   createCart,
   getCart,
+  mergeCart,
   removeCartItem,
   updateCartItem,
 } from '../controllers/cart.controller.js';
+import { authenticate } from '../middleware/authenticate.js';
 import { validateBody, validateParams } from '../middleware/validate.js';
 import {
   AddCartItemBodySchema,
@@ -19,6 +21,12 @@ import { asyncHandler } from '../utils/async-handler.js';
 const router = Router();
 
 router.post('/carts', asyncHandler(createCart));
+router.post(
+  '/carts/:cartId/merge',
+  authenticate(),
+  validateParams(CartIdParamsSchema),
+  asyncHandler(mergeCart),
+);
 router.get('/carts/:cartId', validateParams(CartIdParamsSchema), asyncHandler(getCart));
 router.post(
   '/carts/:cartId/items',

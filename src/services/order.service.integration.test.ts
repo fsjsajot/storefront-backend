@@ -80,6 +80,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  await prisma.auditLog.deleteMany();
   await prisma.order.deleteMany();
   await prisma.cartItem.deleteMany();
   await prisma.cart.deleteMany();

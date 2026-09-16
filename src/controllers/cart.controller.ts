@@ -1,9 +1,20 @@
 import type { Request, Response } from 'express';
+import { getAuditContext } from '../middleware/audit.js';
 import { cartService } from '../services/cart.service.js';
+import { ApiError } from '../utils/api-error.js';
 import { ok } from '../utils/api-response.js';
 
 export async function createCart(_req: Request, res: Response): Promise<void> {
-  const cart = await cartService.createCart();
+  const cart = await cartService.createCart(getAuditContext(res));
+  ok(res, cart);
+}
+
+export async function mergeCart(req: Request, res: Response): Promise<void> {
+  if (req.user === undefined) {
+    throw new ApiError(401, 'Authentication required');
+  }
+  const { cartId } = res.locals.validatedParams as { cartId: string };
+  const cart = await cartService.mergeCart(cartId, req.user.id, getAuditContext(res));
   ok(res, cart);
 }
 
@@ -20,25 +31,25 @@ export async function addCartItem(_req: Request, res: Response): Promise<void> {
     variantId?: string;
     quantity: number;
   };
-  const cart = await cartService.addItem(cartId, body);
+  const cart = await cartService.addItem(cartId, body, getAuditContext(res));
   ok(res, cart);
 }
 
 export async function updateCartItem(_req: Request, res: Response): Promise<void> {
   const { cartId, itemId } = res.locals.validatedParams as { cartId: string; itemId: string };
   const { quantity } = res.locals.validatedBody as { quantity: number };
-  const cart = await cartService.updateItemQuantity(cartId, itemId, quantity);
+  const cart = await cartService.updateItemQuantity(cartId, itemId, quantity, getAuditContext(res));
   ok(res, cart);
 }
 
 export async function removeCartItem(_req: Request, res: Response): Promise<void> {
   const { cartId, itemId } = res.locals.validatedParams as { cartId: string; itemId: string };
-  const cart = await cartService.removeItem(cartId, itemId);
+  const cart = await cartService.removeItem(cartId, itemId, getAuditContext(res));
   ok(res, cart);
 }
 
 export async function clearCart(_req: Request, res: Response): Promise<void> {
   const { cartId } = res.locals.validatedParams as { cartId: string };
-  const cart = await cartService.clearCart(cartId);
+  const cart = await cartService.clearCart(cartId, getAuditContext(res));
   ok(res, cart);
 }

@@ -1,7 +1,9 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
 
-export type CartWithItems = Prisma.CartGetPayload<{ include: { items: true } }>;
+export type CartWithItems = Prisma.CartGetPayload<{
+  include: { items: { include: { product: true; variant: true } } };
+}>;
 export type ProductRow = Prisma.ProductGetPayload<true>;
 export type VariantRow = Prisma.ProductVariantGetPayload<true>;
 export type CartItemRow = Prisma.CartItemGetPayload<true>;
@@ -20,15 +22,26 @@ async function createCart(): Promise<CartWithItems> {
 }
 
 async function findCartById(cartId: string): Promise<CartWithItems | null> {
-  const cart = await prisma.cart.findUnique({ where: { id: cartId } });
-  if (cart === null) {
-    return null;
-  }
-  const items = await prisma.cartItem.findMany({
-    where: { cartId },
-    orderBy: { createdAt: 'asc' },
+  return prisma.cart.findUnique({
+    where: { id: cartId },
+    include: { items: { include: { product: true, variant: true } } },
   });
-  return { ...cart, items };
+}
+
+async function findCartByUserId(userId: string): Promise<CartWithItems | null> {
+  return prisma.cart.findFirst({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: { items: { include: { product: true, variant: true } } },
+  });
+}
+
+async function setCartUserId(cartId: string, userId: string): Promise<void> {
+  await prisma.cart.update({ where: { id: cartId }, data: { userId } });
+}
+
+async function deleteCart(cartId: string): Promise<void> {
+  await prisma.cart.delete({ where: { id: cartId } });
 }
 
 async function findProductById(productId: string): Promise<ProductRow | null> {
@@ -84,6 +97,9 @@ async function deleteCartItems(cartId: string): Promise<void> {
 export const cartRepository = {
   createCart,
   findCartById,
+  findCartByUserId,
+  setCartUserId,
+  deleteCart,
   findProductById,
   findVariantById,
   findCartItemByProductAndVariant,
